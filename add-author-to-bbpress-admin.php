@@ -41,12 +41,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 
 
-add_action( 'bbp_author_metabox', 'add_author_to_bbpress_admin' );
+add_action( 'bbp_author_metabox', 'add_author_to_bbpress_admin', 10, 1 );
 /**
  * Adds an author select box to the bbPress admin.
  */
 function add_author_to_bbpress_admin() {
 
+	// Hack to work around bug in bbPress core - https://bbpress.trac.wordpress.org/ticket/2696#comment:4
+	if ( ! did_action( 'admin_head' ) ) {
+		return;
+	}
+
+	// You can filter this to alter the maximum number of users shown
 	$max_number = apply_filters( 'add_author_to_bbpress_admin_max_number', 200 );
 
 	$users = get_users(
@@ -55,25 +61,30 @@ function add_author_to_bbpress_admin() {
 			'number' => $max_number,
 		)
 	);
+
+	// If too many users, then give up and report that the plugin won't work on this site
 	if ( $max_number == count( $users ) ) {
 		echo '<strong>' . esc_html__( sprintf( 'You have more than %s users. This is too many for the Add Author to bbPress admin plugin to handle, and so it is falling back to the default ID system sorry.', (string) $max_number ), 'add-author-to-bbpress-admin' ) . '</strong>';
 		return;
 	}
 
+	// Finally, spit out the list of authors to choose from
 	?>
 	<p>
 		<strong><?php esc_html_e( 'Select author by name', 'add-author-to-bbpress-admin' ); ?></strong>
 		<br />
 		<select name="post_author_override" id="bbp_author_selector"><?php
 
+		echo '<option value="0">' . esc_html__( 'Anonymous user', 'add-author-to-bbpress-admin' ) . '</option>';
 		foreach ( $users as $user ) {
-			echo '<option value="' . esc_attr( $user->ID ) . '">' . esc_html( $user->data->display_name ) . '</option>';
+			echo '<option ' . selected( $user->ID, bbp_get_global_post_field( 'post_author' ) ) . 'value="' . esc_attr( $user->ID ) . '">' . esc_html( $user->data->display_name ) . '</option>';
 		}
 
 		?>
 		</select>
 	</p>
 
+	<!-- Disable the existing author ID input field -->
 	<script>
 	document.getElementById("bbp_author_id").setAttribute("disabled", "disabled");
 	</script>
